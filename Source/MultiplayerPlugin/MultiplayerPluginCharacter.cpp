@@ -10,15 +10,16 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "Interfaces/OnlineSessionInterface.h" 
 #include "OnlineSubsystem.h" 
+#include "OnlineSessionSettings.h" 
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // AMultiplayerPluginCharacter
 
-AMultiplayerPluginCharacter::AMultiplayerPluginCharacter()
+AMultiplayerPluginCharacter::AMultiplayerPluginCharacter() :
+	OnCreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -84,6 +85,60 @@ void AMultiplayerPluginCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+}
+
+void AMultiplayerPluginCharacter::CreateGameSession()
+{
+	// Call when pressing 1 key
+	if (!OnlineSessionInterface.IsValid())
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("Unable to create game session, OnlineSessionInterface pointer is not valid!"));
+	}
+
+	// Destory existing session if already created
+	FNamedOnlineSession* ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExistingSession)
+	{
+		OnlineSessionInterface->DestroySession(ExistingSession->SessionName);
+	}
+
+	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(OnCreateSessionCompleteDelegate);
+
+	// Create session
+	TSharedPtr<FOnlineSessionSettings> SessionSttings = MakeShareable(new FOnlineSessionSettings());
+	SessionSttings->bIsLANMatch = false;
+	SessionSttings->NumPublicConnections = 4;
+	SessionSttings->bAllowJoinInProgress = true;
+	SessionSttings->bAllowJoinViaPresence = true;
+	SessionSttings->bShouldAdvertise = true;
+	SessionSttings->bUsesPresence = true;
+
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSttings);
+}
+
+void AMultiplayerPluginCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (!bWasSuccessful)
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("Game session was not created succefully"));
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Red,
+				TEXT("Game session was not created succefully"));
+		return;
+	}
+	
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			15.0f,
+			FColor::Cyan,
+			FString::Printf(TEXT("Created session %s"),
+				*SessionName.ToString()));
 }
 
 //////////////////////////////////////////////////////////////////////////

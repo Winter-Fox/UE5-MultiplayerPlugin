@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Interfaces/OnlineSessionInterface.h" 
+
 #include "MultiplayerPluginCharacter.generated.h"
 
 class USpringArmComponent;
@@ -72,6 +74,15 @@ public:
 
 public:
 	// Pointer to the session interface
-	TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> OnlineSessionInterface;
+	IOnlineSessionPtr OnlineSessionInterface;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+	void CreateGameSession();
+
+	UFUNCTION()
+	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+private:
+	FOnCreateSessionCompleteDelegate OnCreateSessionCompleteDelegate;
 };
 
