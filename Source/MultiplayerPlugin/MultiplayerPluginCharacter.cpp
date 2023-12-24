@@ -12,6 +12,7 @@
 #include "InputActionValue.h"
 #include "OnlineSubsystem.h" 
 #include "OnlineSessionSettings.h" 
+#include "Online/OnlineSessionNames.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -19,7 +20,9 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 // AMultiplayerPluginCharacter
 
 AMultiplayerPluginCharacter::AMultiplayerPluginCharacter() :
-	OnCreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
+	OnCreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
+	OnFindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
+	OnJoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -112,9 +115,31 @@ void AMultiplayerPluginCharacter::CreateGameSession()
 	SessionSttings->bAllowJoinViaPresence = true;
 	SessionSttings->bShouldAdvertise = true;
 	SessionSttings->bUsesPresence = true;
+	SessionSttings->bUseLobbiesIfAvailable = true;
+
+	SessionSttings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSttings);
+}
+
+void AMultiplayerPluginCharacter::JoinGameSession()
+{
+	if (!OnlineSessionInterface.IsValid())
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("Unable to create game session, OnlineSessionInterface pointer is not valid!"));
+	}
+
+	OnlineSessionInterface->AddOnCancelFindSessionsCompleteDelegate_Handle(OnFindSessionsCompleteDelegate);
+
+	//Find game session
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 100;
+	SessionSearch->bIsLanQuery = false;
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+	
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 }
 
 void AMultiplayerPluginCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -139,7 +164,109 @@ void AMultiplayerPluginCharacter::OnCreateSessionComplete(FName SessionName, boo
 			FColor::Cyan,
 			FString::Printf(TEXT("Created session %s"),
 				*SessionName.ToString()));
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+	World->ServerTravel(FString("/Game/ThirdPerson/Maps/LobbyLevel?listen"));
 }
+
+void AMultiplayerPluginCharacter::OnFindSessionsComplete(bool bWasSuccessful)
+{
+	if (!bWasSuccessful || !OnlineSessionInterface.IsValid())
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("No game session were found"));
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Red,
+				TEXT("No game session were found"));
+		return;
+	}
+
+	for (FOnlineSessionSearchResult Result : SessionSearch->SearchResults)
+	{
+		FString SessionId = Result.GetSessionIdStr();
+		FString User = Result.Session.OwningUserName;
+
+		FString MatchType;
+		Result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Cyan,
+				FString::Printf(TEXT("Found session | Id: %s | Owner name: %s \n"),
+					*SessionId, *User));
+
+		if (MatchType == FString("FreeForAll"))
+		{
+			if (GEngine)
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					15.0f,
+					FColor::Cyan,
+					FString::Printf(TEXT("Joining match type %s"),
+						*MatchType));
+
+			OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(OnJoinSessionCompleteDelegate);
+
+			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+			OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
+			return;
+		}
+	}
+}
+
+void AMultiplayerPluginCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (Result != EOnJoinSessionCompleteResult::Success || !OnlineSessionInterface.IsValid())
+	{
+		UE_LOG(LogTemplateCharacter, Warning, TEXT("Could not join game session"));
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Red,
+				TEXT("Could not join game session"));
+		return;
+	}
+
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			15.0f,
+			FColor::Cyan,
+			FString::Printf(TEXT("Joined session %s"),
+				*SessionName.ToString()));
+
+	FString Adress;
+	if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Adress))
+	{
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Yellow,
+				FString::Printf(TEXT("Connect string %s"),
+					*Adress));
+
+		APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+		if (!IsValid(PlayerController))
+		{
+			return;
+		}
+		PlayerController->ClientTravel(Adress, ETravelType::TRAVEL_Absolute);
+	}
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////
 // Input
