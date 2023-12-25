@@ -23,6 +23,10 @@ protected:
 
 	virtual void NativeDestruct() override;
 
+protected:
+	UFUNCTION()
+	void OnCreateSessionComplete(bool bWasSucceful);
+
 private:
 	UPROPERTY(meta = (BindWidget))
 	UButton* HostButton;
