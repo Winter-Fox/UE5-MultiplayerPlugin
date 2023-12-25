@@ -27,7 +27,10 @@ public class MultiplayerSession : ModuleRules
 			{
 				"Core",
 				"OnlineSubsystem",
-                "OnlineSubsystemSteam"
+                "OnlineSubsystemSteam",
+				"Slate",
+				"SlateCore",
+				"UMG"
             }
 			);
 			
