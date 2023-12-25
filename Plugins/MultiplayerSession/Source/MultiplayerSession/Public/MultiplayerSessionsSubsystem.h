@@ -8,6 +8,10 @@
 
 #include "MultiplayerSessionsSubsystem.generated.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogMultiplayerSessionsSubsystem, Log, All);
+
+class FOnlineSessionSettings;
+
 /**
  * Game subsystem to operate sessions functionality
  */
@@ -41,6 +45,7 @@ protected:
 
 private:
 	IOnlineSessionPtr OnlineSessionInterface;
+	TSharedPtr<FOnlineSessionSettings> LastSessionSettings;
 
 	//
 	// To add to the Online Session delegate list
@@ -52,9 +57,9 @@ private:
 	FOnDestroySessionCompleteDelegate OnDestroySessionCompleteDelegate;
 	FOnStartSessionCompleteDelegate   OnStartSessionCompleteDelegate;
 
-	FDelegateHandle CreateSessionCompletehandle;
-	FDelegateHandle FindSessionCompletehandle;
-	FDelegateHandle JoinSessionCompletehandle;
-	FDelegateHandle DestroySessionCompletehandle;
-	FDelegateHandle StartSessionCompletehandle;
+	FDelegateHandle CreateSessionCompleteHandle;
+	FDelegateHandle FindSessionCompleteHandle;
+	FDelegateHandle JoinSessionCompleteHandle;
+	FDelegateHandle DestroySessionCompleteHandle;
+	FDelegateHandle StartSessionCompleteHandle;
 };
