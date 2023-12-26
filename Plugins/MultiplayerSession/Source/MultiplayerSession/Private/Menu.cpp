@@ -86,12 +86,17 @@ void UMenu::OnCreateSessionComplete(bool bWasSucceful)
 				FColor::Yellow,
 				TEXT("Session created succefully"));
 	}
+	else
+	{
+		HostButton->SetIsEnabled(true);
+	}
 }
 
 void UMenu::OnFindSessionComplete(const TArray<FOnlineSessionSearchResult>& SearchResults, bool bWasSucceful)
 {
-	if (!IsValid(MultiplayerSessionsSubsystem))
+	if (!IsValid(MultiplayerSessionsSubsystem) || SearchResults.Num() <= 0 || !bWasSucceful)
 	{
+		JoinButton->SetIsEnabled(true);
 		return;
 	}
 
@@ -128,6 +133,10 @@ void UMenu::OnJoinSessionComplete(EOnJoinSessionCompleteResult::Type Result)
 			FColor::Cyan,
 			FString::Printf(TEXT("Joining session had a result %s"),
 				Result));
+	if (Result != EOnJoinSessionCompleteResult::Success)
+	{
+		JoinButton->SetIsEnabled(true);
+	}
 }
 
 void UMenu::OnDestroySessionComplete(bool bWasSucceful)
@@ -141,6 +150,7 @@ void UMenu::OnStartSessionComplete(bool bWasSucceful)
 
 void UMenu::HostButtonClicked()
 {
+	HostButton->SetIsEnabled(false);
 	if (IsValid(MultiplayerSessionsSubsystem))
 	{
 		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchType, PathToLobby);
@@ -149,6 +159,7 @@ void UMenu::HostButtonClicked()
 
 void UMenu::JoinButtonClicked()
 {
+	JoinButton->SetIsEnabled(false);
 	if (IsValid(MultiplayerSessionsSubsystem))
 	{
 		MultiplayerSessionsSubsystem->FindSessions(1000);

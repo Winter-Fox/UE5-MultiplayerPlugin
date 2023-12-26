@@ -80,4 +80,8 @@ private:
 	FDelegateHandle JoinSessionCompleteHandle;
 	FDelegateHandle DestroySessionCompleteHandle;
 	FDelegateHandle StartSessionCompleteHandle;
+
+	bool bCreateSessionOnDesroy;
+	int32 LastNumPublicConnections;
+	FString LastMatchType;
 };
