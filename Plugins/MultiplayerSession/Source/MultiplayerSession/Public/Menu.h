@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Interfaces/OnlineSessionInterface.h"
+
 #include "Menu.generated.h"
 
 class UButton;
@@ -26,6 +28,16 @@ protected:
 protected:
 	UFUNCTION()
 	void OnCreateSessionComplete(bool bWasSucceful);
+	
+	void OnFindSessionComplete(const TArray<FOnlineSessionSearchResult>& SearchResults, bool bWasSucceful);
+
+	void OnJoinSessionComplete(EOnJoinSessionCompleteResult::Type Result);
+
+	UFUNCTION()
+	void OnDestroySessionComplete(bool bWasSucceful);
+
+	UFUNCTION()
+	void OnStartSessionComplete(bool bWasSucceful);
 
 private:
 	UPROPERTY(meta = (BindWidget))
