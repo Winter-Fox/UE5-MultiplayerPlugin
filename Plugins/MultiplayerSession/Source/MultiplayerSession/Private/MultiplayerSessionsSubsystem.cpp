@@ -37,6 +37,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 		bCreateSessionOnDesroy = true;
 		LastNumPublicConnections = NumPublicConnections;
 		LastMatchType = MatchType;
+		PathToLobby = LobbyPath;
 		DestroySession();
 	}
 
