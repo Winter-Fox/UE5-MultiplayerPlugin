@@ -5,11 +5,13 @@
 
 #include "Components/Button.h"
 #include "MultiplayerSessionsSubsystem.h"
+#include "OnlineSessionSettings.h" 
 
-void UMenu::MenuSetup(int32 NumverOfPublicconnections, FString TypeOfMatch)
+void UMenu::MenuSetup(int32 NumverOfPublicconnections, FString TypeOfMatch, FString LobbyPath)
 {
 	NumPublicConnections = NumverOfPublicconnections;
 	MatchType = TypeOfMatch;
+	PathToLobby = FString::Printf(TEXT("%s?listen"), *LobbyPath);
 
 	AddToViewport();
 	SetVisibility(ESlateVisibility::Visible);
@@ -88,10 +90,44 @@ void UMenu::OnCreateSessionComplete(bool bWasSucceful)
 
 void UMenu::OnFindSessionComplete(const TArray<FOnlineSessionSearchResult>& SearchResults, bool bWasSucceful)
 {
+	if (!IsValid(MultiplayerSessionsSubsystem))
+	{
+		return;
+	}
+
+	for (FOnlineSessionSearchResult Result : SearchResults)
+	{
+		FString SessionId = Result.GetSessionIdStr();
+		FString User = Result.Session.OwningUserName;
+
+		FString SettingsValue;
+		Result.Session.SessionSettings.Get(FName("MatchType"), SettingsValue);
+
+		if (GEngine)
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.0f,
+				FColor::Cyan,
+				FString::Printf(TEXT("Found session | Id: %s | Owner name: %s \n"),
+					*SessionId, *User));
+
+		if (SettingsValue == MatchType)
+		{
+			MultiplayerSessionsSubsystem->JoinSession(Result);
+			return;
+		}
+	}
 }
 
 void UMenu::OnJoinSessionComplete(EOnJoinSessionCompleteResult::Type Result)
 {
+	if (GEngine)
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			15.0f,
+			FColor::Cyan,
+			FString::Printf(TEXT("Joining session had a result %s"),
+				Result));
 }
 
 void UMenu::OnDestroySessionComplete(bool bWasSucceful)
@@ -107,18 +143,16 @@ void UMenu::HostButtonClicked()
 {
 	if (IsValid(MultiplayerSessionsSubsystem))
 	{
-		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchType);
+		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchType, PathToLobby);
 	}
 }
 
 void UMenu::JoinButtonClicked()
 {
-	if (GEngine)
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			15.0f,
-			FColor::Yellow,
-			TEXT("Join button clicked"));
+	if (IsValid(MultiplayerSessionsSubsystem))
+	{
+		MultiplayerSessionsSubsystem->FindSessions(1000);
+	}
 
 }
 

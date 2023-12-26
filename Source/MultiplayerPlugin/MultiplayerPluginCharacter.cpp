@@ -19,9 +19,7 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 //////////////////////////////////////////////////////////////////////////
 // AMultiplayerPluginCharacter
 
-AMultiplayerPluginCharacter::AMultiplayerPluginCharacter() :
-	OnFindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
-	OnJoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete))
+AMultiplayerPluginCharacter::AMultiplayerPluginCharacter()
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -57,21 +55,6 @@ AMultiplayerPluginCharacter::AMultiplayerPluginCharacter() :
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
-	/* Online subsystem. TODO: Move to another class*/
-	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
-	if (OnlineSubsystem)
-	{
-		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
-
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(
-				-1, 
-				15.0f, 
-				FColor::Cyan, 
-				FString::Printf(TEXT("Found subsystem %s"), 
-					*OnlineSubsystem->GetSubsystemName().ToString()));
-	}
 }
 
 void AMultiplayerPluginCharacter::BeginPlay()
@@ -88,119 +71,6 @@ void AMultiplayerPluginCharacter::BeginPlay()
 		}
 	}
 }
-
-void AMultiplayerPluginCharacter::JoinGameSession()
-{
-	if (!OnlineSessionInterface.IsValid())
-	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("Unable to create game session, OnlineSessionInterface pointer is not valid!"));
-	}
-
-	OnlineSessionInterface->AddOnCancelFindSessionsCompleteDelegate_Handle(OnFindSessionsCompleteDelegate);
-
-	//Find game session
-	SessionSearch = MakeShareable(new FOnlineSessionSearch());
-	SessionSearch->MaxSearchResults = 100;
-	SessionSearch->bIsLanQuery = false;
-	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
-	
-	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
-}
-
-void AMultiplayerPluginCharacter::OnFindSessionsComplete(bool bWasSuccessful)
-{
-	if (!bWasSuccessful || !OnlineSessionInterface.IsValid())
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("No game session were found"));
-
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				15.0f,
-				FColor::Red,
-				TEXT("No game session were found"));
-		return;
-	}
-
-	for (FOnlineSessionSearchResult Result : SessionSearch->SearchResults)
-	{
-		FString SessionId = Result.GetSessionIdStr();
-		FString User = Result.Session.OwningUserName;
-
-		FString MatchType;
-		Result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
-
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				15.0f,
-				FColor::Cyan,
-				FString::Printf(TEXT("Found session | Id: %s | Owner name: %s \n"),
-					*SessionId, *User));
-
-		if (MatchType == FString("FreeForAll"))
-		{
-			if (GEngine)
-				GEngine->AddOnScreenDebugMessage(
-					-1,
-					15.0f,
-					FColor::Cyan,
-					FString::Printf(TEXT("Joining match type %s"),
-						*MatchType));
-
-			OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(OnJoinSessionCompleteDelegate);
-
-			const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-			OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
-			return;
-		}
-	}
-}
-
-void AMultiplayerPluginCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
-{
-	if (Result != EOnJoinSessionCompleteResult::Success || !OnlineSessionInterface.IsValid())
-	{
-		UE_LOG(LogTemplateCharacter, Warning, TEXT("Could not join game session"));
-
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				15.0f,
-				FColor::Red,
-				TEXT("Could not join game session"));
-		return;
-	}
-
-	if (GEngine)
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			15.0f,
-			FColor::Cyan,
-			FString::Printf(TEXT("Joined session %s"),
-				*SessionName.ToString()));
-
-	FString Adress;
-	if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Adress))
-	{
-		if (GEngine)
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				15.0f,
-				FColor::Yellow,
-				FString::Printf(TEXT("Connect string %s"),
-					*Adress));
-
-		APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
-		if (!IsValid(PlayerController))
-		{
-			return;
-		}
-		PlayerController->ClientTravel(Adress, ETravelType::TRAVEL_Absolute);
-	}
-}
-
 
 
 //////////////////////////////////////////////////////////////////////////

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
 
@@ -32,7 +33,7 @@ public:
 	//
 	// To handle session functionality. Menu will call these
 	//
-	void CreateSession(int32 NumPublicConnections, FString MatchType);
+	void CreateSession(int32 NumPublicConnections, FString MatchType, FString LobbyPath);
 	void FindSessions(int32 MaxSearchResults);
 	void JoinSession(const FOnlineSessionSearchResult& SearchResult);
 	void DestroySession();
@@ -52,15 +53,17 @@ protected:
 	//	Internal callbacks to the delegates we'll add to the Online Session interface delegate list
 	// These don't have to be called outside of this class
 	//
-	void OnCreateSessionComplete(FName SessionName, bool bWassucceful);
-	void OnFindSessionsComplete(bool bWasSuccessful);
+	void OnCreateSessionComplete(FName SessionName, bool bWasSucceful);
+	void OnFindSessionsComplete(bool bWasSucceful);
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
-	void OnDestroySessionComplete(FName SessionName, bool bWassucceful);
-	void OnStartSessionComplete(FName SessionName, bool bWassucceful);
+	void OnDestroySessionComplete(FName SessionName, bool bWasSucceful);
+	void OnStartSessionComplete(FName SessionName, bool bWasSucceful);
 
 private:
 	IOnlineSessionPtr OnlineSessionInterface;
 	TSharedPtr<FOnlineSessionSettings> LastSessionSettings;
+	TSharedPtr<FOnlineSessionSearch> LastSessionSearch;
+	FString PathToLobby;
 
 	//
 	// To add to the Online Session delegate list

@@ -71,22 +71,5 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
-public:
-	// Pointer to the session interface
-	IOnlineSessionPtr OnlineSessionInterface;
-
-protected:
-	UFUNCTION(BlueprintCallable)
-	void JoinGameSession();
-
-	void OnFindSessionsComplete(bool bWasSuccessful);
-	
-	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
-private:
-	TSharedPtr<FOnlineSessionSearch> SessionSearch;
-
-	FOnFindSessionsCompleteDelegate  OnFindSessionsCompleteDelegate;
-	FOnJoinSessionCompleteDelegate   OnJoinSessionCompleteDelegate;
 };
 
